@@ -1,0 +1,21 @@
+# Nunca subir fuentes con copyright
+
+sources/
+**/*.pdf
+**/*.PDF
+**/*.doc
+**/*.docx
+**/*.rtf
+**/*.html
+
+# Archivos privados
+**/PRIVATE_*
+**/LOCAL_*
+*.private.*
+
+# Directorio de backups
+backups/
+
+# Credenciales
+.env.local
+.env.*.local

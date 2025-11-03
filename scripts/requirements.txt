@@ -1,0 +1,9 @@
+pandas
+pyarrow
+pytest
+requests
+ollama
+openai
+numpy
+scikit-learn
+lancedb

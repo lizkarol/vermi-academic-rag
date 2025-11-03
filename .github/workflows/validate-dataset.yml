@@ -1,0 +1,60 @@
+name: Validate Dataset Quality
+
+on:
+  push:
+    paths:
+      - 'dataset/chunks_enriched/**'
+  pull_request:
+    paths:
+      - 'dataset/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r scripts/requirements.txt
+
+      # Schema validation (rápido, local)
+      - name: Schema validation
+        run: python scripts/validate_chunks.py --mode schema
+
+      # Semantic validation con LLM (muestra del 10%)
+      - name: Semantic validation (sample)
+        run: python scripts/validate_chunks.py --mode semantic --sample 0.1
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      # Detección de duplicados
+      - name: Check for duplicates
+        run: python scripts/merge_redundant.py --detect-only
+
+      # Análisis de cobertura
+      - name: Coverage analysis
+        run: python scripts/validate_chunks.py --mode coverage
+
+      # Generar reporte
+      - name: Generate quality report
+        run: python -c "import json; print('✅ All checks passed')" \
+          > dataset/validation/quality_report_latest.json
+
+      # Publicar reporte
+      - name: Comment PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Dataset validation passed'
+            })

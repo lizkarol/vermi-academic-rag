@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+# Pre-commit hook: Evitar subir PDFs o sources/
+
+if git diff --cached --name-only | grep -E '(^|/)sources/|\.pdf$|\.PDF$'; then
+    echo "❌ BLOQUEADO: No puedes subir fuentes/ ni PDFs al repo público."
+    echo "✅ Solución: Genera chunks JSON localmente y sube solo el JSONL."
+    exit 1
+fi
+
+exit 0
