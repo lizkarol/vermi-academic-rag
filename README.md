@@ -22,12 +22,13 @@ Debido a las restricciones de derechos de autor de los papers académicos y manu
 
 ### 🔧 El "Motor" que proporcionamos:
 
-#### **Prioridad #1: Conversión PDF → Markdown con fidelidad**
-*   **`scripts/conversion/convert_pdf_local.py`**: Convierte PDFs académicos a Markdown usando `marker-sdk`
-    - Preserva estructura de tablas y figuras
-    - OCR para documentos escaneados
-    - Detección de ecuaciones matemáticas
-    - Alta fidelidad de contenido
+#### **Prioridad #1: Conversión PDF → Markdown con Sistema Adaptativo**
+*   **`scripts/conversion/adaptive_converter.py`**: Sistema inteligente que selecciona la mejor estrategia según tipo de PDF
+    - **PDFs nativos** (texto seleccionable): pdfplumber (⚡ 5-10s)
+    - **PDFs escaneados** (imagen): marker-pdf + EasyOCR + GPU (🔬 5-7min)
+    - **PDFs mixtos** (híbridos): docling con detección automática (⚖️ 30-60s)
+    - Tracking con SQLite (detección de duplicados por SHA-256)
+    - Validación opcional con Ollama gemma3:12b (local, BYOS)
 
 #### Herramientas de Validación:
 *   **`scripts/chunking/validate_chunks.py`**: Valida esquema de chunks (modos: schema, semantic, coverage)
@@ -46,7 +47,7 @@ Los papers académicos, manuales técnicos o documentos de vermicompostaje a los
 ### Requisitos Previos
 
 - **Python 3.11+**
-- **macOS o Windows** (Linux compatible pero sin soporte oficial aún)
+- **macOS, Ubuntu, o Windows** (soporte multi-plataforma)
 - **Acceso a un LLM** (Gemini, GPT-4, Claude, o modelos locales vía Ollama)
 
 ### Pasos para tu Primera Contribución:
@@ -57,27 +58,51 @@ Los papers académicos, manuales técnicos o documentos de vermicompostaje a los
 git clone https://github.com/lizkarol/vermi-academic-rag.git
 cd vermi-academic-rag
 
-# Instalar dependencias (ver INSTALLATION.md para detalles por OS)
+# Ejecutar setup automático (recomienda)
+./setup.sh
+
+# O instalar manualmente (ver scripts/requirements.txt para detalles)
 pip install -r scripts/requirements.txt
 ```
 
-#### 2. **Conversión PDF → Markdown (LOCAL)**
-Este es el paso más crítico: convierte tu PDF con alta fidelidad.
+#### 2. **Conversión PDF → Markdown (SISTEMA ADAPTATIVO)**
+El sistema detecta automáticamente el tipo de PDF y aplica la estrategia óptima.
 
 ```bash
-python scripts/conversion/convert_pdf_local.py "ruta/a/tu/paper.pdf"
+# 1. Detectar tipo de PDF (rápido, < 1s)
+python scripts/conversion/pdf_type_detector.py paper.pdf
+
+# 2. Conversión automática (selecciona estrategia)
+python scripts/conversion/adaptive_converter.py paper.pdf
+
+# 3. Con validación Ollama (opcional, +10-30s)
+python scripts/conversion/adaptive_converter.py paper.pdf --ollama
+
+# 4. Forzar estrategia específica (debug)
+python scripts/conversion/adaptive_converter.py paper.pdf --strategy scanned
+
+# 5. Forzar reconversión (ignorar duplicados)
+python scripts/conversion/adaptive_converter.py paper.pdf --force
 ```
 
-**Salida:** `sources/markdown_outputs/tu_paper.md` (ignorado por Git)
+**Salida:** 
+- `sources_local/converted/paper.md` (Markdown generado)
+- `sources_local/metadata/conversion_tracker.db` (Tracking SQLite)
+- `sources_local/reports/paper_validation.json` (Si usas --ollama)
 
-**Opciones avanzadas:**
-```bash
-# Forzar OCR para documentos escaneados
-python scripts/conversion/convert_pdf_local.py "paper.pdf" --force-ocr
+**Performance:**
+- PDFs nativos: ~5-10 segundos (pdfplumber)
+- PDFs escaneados: ~5-7 minutos con GPU (marker-pdf + OCR)
+- PDFs mixtos: ~30-60 segundos (docling)
 
-# Especificar directorio de salida
-python scripts/conversion/convert_pdf_local.py "paper.pdf" --output_dir "mi_carpeta"
-```
+**Características avanzadas:**
+- ✅ Detección de duplicados por hash SHA-256
+- ✅ Validación de fidelidad con gemma3:12b (Ollama)
+- ✅ Extracción de tablas con pdfplumber
+- ✅ Hardware detection automático (MPS/CUDA/CPU)
+- ✅ Tracking en SQLite con estadísticas
+
+**Ver más:** [`docs/CONVERSION_SYSTEM.md`](docs/CONVERSION_SYSTEM.md)
 
 #### 3. **Generar Chunks Parafraseados (LLM - Manual)**
 Usa el Markdown generado para crear chunks en tus propias palabras.

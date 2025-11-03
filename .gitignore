@@ -4,6 +4,11 @@
 sources/
 sources/**/*
 
+# Directorio local de conversión (solo local, nunca subir)
+sources_local/
+sources_local/**/*
+!sources_local/*/.gitkeep
+
 # Tipos de archivo con copyright
 **/*.pdf
 **/*.PDF

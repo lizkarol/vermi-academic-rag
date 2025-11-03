@@ -1,12 +1,84 @@
-pandas
-pyarrow
-pytest
-requests
-ollama
-openai
-numpy
-scikit-learn
-lancedb
-torch
-marker-sdk
+# ====================================
+# PDF→Markdown Stack Adaptativo (Nov 2025)
+# Basado en: guia-instalacion.md + receta-pdf-markdown.md
+# Python: 3.11+ (macOS M4 MPS, Ubuntu CUDA, Windows CPU/CUDA)
+# ====================================
+
+# ========== CORE: NumPy (INSTALAR PRIMERO) ==========
+numpy>=1.26.4,<2.0.0  # Para Python < 3.13
+
+# ========== PyTorch (INSTALAR MANUALMENTE SEGÚN HARDWARE) ==========
+# NO incluir torch aquí - instalar según plataforma:
+#
+# macOS M4 (MPS):
+#   pip install torch==2.5.1 torchvision==0.20.1
+#
+# Ubuntu RTX 3070 (CUDA 12.1):
+#   pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu121
+#
+# Windows RTX 3070 (CUDA 12.1):
+#   pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu121
+#
+# CPU (cualquier plataforma):
+#   pip install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cpu
+
+# ========== PDF NATIVO: pdfplumber (rápido) ==========
+pdfplumber==0.11.4       # Texto seleccionable (5-10s/50pág)
+pdfminer.six==20231228   # Pinned (NO usar 20240706 - bug conocido)
+
+# ========== PDF ESCANEADO: marker-pdf + OCR (lento) ==========
+marker-pdf>=1.0.0        # OCR con Surya models (5-7min GPU)
+pypdfium2>=4.30.0        # Rendering páginas
+
+# ========== OCR: PDFs Escaneados/Mixtos ==========
+Pillow==10.4.0                      # Procesamiento de imágenes
+pdf2image==1.17.0                   # PDF → imágenes (requiere poppler)
+opencv-python-headless==4.10.0.84   # CV sin GUI (previene libGL errors)
+easyocr==1.7.1                      # OCR con GPU (PyTorch backend)
+pytesseract==0.3.13                 # OCR fallback (requiere tesseract)
+
+# EasyOCR Dependencies
+scikit-image==0.24.0
+scipy>=1.14.0
+pyyaml>=6.0.0
+python-bidi>=0.6.0
+
+# ========== PDF MIXTO: docling (balanceado) ==========
+docling>=2.18.0          # Detección inteligente (30-60s)
+
+# ========== RAG: Vector DB + Embeddings ==========
+lancedb==0.25.2              # Vector database (NO pre-release)
+pylance==0.21.0              # Release version (NO beta)
+sentence-transformers>=3.3.0  # Embeddings locales
+
+# ========== VALIDACIÓN: Ollama (opcional) ==========
+requests>=2.31.0             # API calls a Ollama local
+python-dotenv>=1.0.0         # Configuración .env
+
+# ========== PROCESAMIENTO DE DATOS ==========
+pandas>=2.2.0
+pyarrow>=0.17.0
+
+# ========== VALIDACIÓN Y TESTING ==========
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pydantic>=2.0.0
+jsonschema>=4.20.0
+
+# ========== UTILIDADES ==========
+tqdm>=4.66.0
+python-dateutil>=2.8.0
+
+# ========== NOTAS DE INSTALACIÓN ==========
+# 1. Instalar Python 3.11+
+# 2. Crear venv: python3.11 -m venv .venv
+# 3. Activar: source .venv/bin/activate (macOS/Linux) o .venv\Scripts\activate (Windows)
+# 4. Instalar NumPy: pip install "numpy>=1.26.4,<2.0.0"
+# 5. Instalar PyTorch según hardware (ver sección PyTorch arriba)
+# 6. Instalar resto: pip install -r scripts/requirements.txt
+# 7. Instalar herramientas sistema:
+#    - macOS: brew install poppler tesseract
+#    - Ubuntu: sudo apt-get install poppler-utils tesseract-ocr
+#    - Windows: scoop install poppler tesseract (o chocolatey)
+# 8. Opcional: Instalar Ollama (https://ollama.ai) y ejecutar: ollama pull gemma3:12b
 
