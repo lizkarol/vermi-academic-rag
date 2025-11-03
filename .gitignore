@@ -8,6 +8,9 @@ sources/
 **/*.rtf
 **/*.html
 
+# Archivos de salida de la conversión local
+/sources/markdown_outputs/
+
 # Archivos privados
 **/PRIVATE_*
 **/LOCAL_*
@@ -19,3 +22,4 @@ backups/
 # Credenciales
 .env.local
 .env.*.local
+

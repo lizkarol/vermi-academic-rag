@@ -7,3 +7,6 @@ openai
 numpy
 scikit-learn
 lancedb
+torch
+marker-sdk
+
