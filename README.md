@@ -4,7 +4,7 @@
 ![BYOS Policy](https://img.shields.io/badge/Content%20Policy-BYOS-important.svg)
 ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/lizkarol/vermi-academic-rag/validate-dataset.yml?branch=main&label=Dataset%20Validation)
 
-Un repositorio público y colaborativo para crear un dataset de Retrieval-Augmented Generation (RAG) de alta calidad, enfocado en papers académicos y construido bajo una estricta política legal-safe.
+Un repositorio público y colaborativo para crear un dataset de Retrieval-Augmented Generation (RAG) de alta calidad, especializado en **vermicompostaje doméstico** y construido bajo una estricta política legal-safe.
 
 ---
 
@@ -12,47 +12,173 @@ Un repositorio público y colaborativo para crear un dataset de Retrieval-Augmen
 
 Este proyecto opera bajo un principio fundamental: **proporcionamos las herramientas (el motor), pero no los datos brutos con copyright (la gasolina)**.
 
-Debido a las restricciones de derechos de autor de los papers académicos, no podemos alojar directamente los PDFs ni sus textos extraídos. En su lugar, hemos desarrollado un flujo de trabajo **Bring Your Own Sources (BYOS)** que permite a la comunidad procesar los documentos de forma **local y privada** y contribuir únicamente con los datos estructurados y parafraseados, que no infringen el copyright.
+### ¿Por qué BYOS (Bring Your Own Sources)?
 
-El repositorio te da el "motor":
-*   **Scripts de conversión:** Para pasar de PDF a Markdown usando tecnología de punta.
-*   **Validadores de datos:** Para asegurar la calidad y consistencia de las contribuciones.
-*   **Esquemas y plantillas:** Para generar los datos estructurados de forma estandarizada.
+Debido a las restricciones de derechos de autor de los papers académicos y manuales técnicos, **no podemos alojar directamente los PDFs ni sus textos extraídos**. En su lugar, hemos desarrollado un flujo de trabajo que permite a la comunidad:
 
-Tú pones la "gasolina": los papers a los que tienes acceso legal.
+1. **Procesar documentos localmente** (en tu máquina, de forma privada)
+2. **Generar chunks parafraseados** (con tus propias palabras, usando LLMs)
+3. **Contribuir solo los datos estructurados** (que no infringen copyright)
+
+### 🔧 El "Motor" que proporcionamos:
+
+#### **Prioridad #1: Conversión PDF → Markdown con fidelidad**
+*   **`scripts/conversion/convert_pdf_local.py`**: Convierte PDFs académicos a Markdown usando `marker-sdk`
+    - Preserva estructura de tablas y figuras
+    - OCR para documentos escaneados
+    - Detección de ecuaciones matemáticas
+    - Alta fidelidad de contenido
+
+#### Herramientas de Validación:
+*   **`scripts/chunking/validate_chunks.py`**: Valida esquema de chunks (modos: schema, semantic, coverage)
+
+#### Documentación y Plantillas:
+*   **Esquemas de datos**: Estructura clara y validable para chunks
+*   **Guías de contribución**: Flujo paso a paso con ejemplos
+*   **Templates de prompts**: Para generar chunks con LLMs
+
+### ⛽ La "Gasolina" que tú pones:
+
+Los papers académicos, manuales técnicos o documentos de vermicompostaje a los que tienes **acceso legal**.
 
 ## 🚀 Quickstart: Cómo Contribuir
 
-Sigue estos pasos para realizar tu primera contribución:
+### Requisitos Previos
 
-1.  **Fork & Clone:** Haz un fork de este repositorio y clónalo en tu máquina local.
-2.  **Configura el Entorno:** Instala todas las dependencias necesarias.
-    ```bash
-    pip install -r scripts/requirements.txt
-    ```
-3.  **Procesa tu PDF (Localmente):** Ejecuta el script de conversión apuntando a un paper que tengas en tu disco. El resultado se guardará en una carpeta ignorada por Git (`sources/markdown_outputs`).
-    ```bash
-    python scripts/convert_pdf_local.py "ruta/a/tu/paper.pdf"
-    ```
-4.  **Genera los Datos Estructurados:**
-    *   Abre el archivo Markdown generado en el paso anterior.
-    *   Usa ese contenido junto con la plantilla de prompt en `scripts/generate_cards_local.md` y tu LLM de preferencia (GPT-4, Gemini, etc.) para generar las "fichas" en formato JSONL.
-5.  **Añade y Valida tu Contribución:**
-    *   Mueve tu archivo `.jsonl` final a la carpeta `dataset/chunks_enriched/`.
-    *   Ejecuta el script de validación para asegurarte de que todo está en orden.
-    ```bash
-    python scripts/validate_chunks.py "dataset/chunks_enriched/tu_archivo.jsonl"
-    ```
-6.  **Crea un Pull Request:** Haz commit de tu archivo `.jsonl` y envíalo como un Pull Request para que sea revisado e integrado al dataset principal.
+- **Python 3.11+**
+- **macOS o Windows** (Linux compatible pero sin soporte oficial aún)
+- **Acceso a un LLM** (Gemini, GPT-4, Claude, o modelos locales vía Ollama)
 
-## 🗺️ Roadmap del Proyecto
+### Pasos para tu Primera Contribución:
 
-Tenemos un plan detallado para el crecimiento y la evolución de este dataset. Puedes consultarlo en nuestro roadmap oficial:
-➡️ **[docs/ROADMAP_DETALLADO.md](docs/ROADMAP_DETALLADO.md)**
+#### 1. **Setup Inicial**
+```bash
+# Clonar el repositorio
+git clone https://github.com/lizkarol/vermi-academic-rag.git
+cd vermi-academic-rag
+
+# Instalar dependencias (ver INSTALLATION.md para detalles por OS)
+pip install -r scripts/requirements.txt
+```
+
+#### 2. **Conversión PDF → Markdown (LOCAL)**
+Este es el paso más crítico: convierte tu PDF con alta fidelidad.
+
+```bash
+python scripts/conversion/convert_pdf_local.py "ruta/a/tu/paper.pdf"
+```
+
+**Salida:** `sources/markdown_outputs/tu_paper.md` (ignorado por Git)
+
+**Opciones avanzadas:**
+```bash
+# Forzar OCR para documentos escaneados
+python scripts/conversion/convert_pdf_local.py "paper.pdf" --force-ocr
+
+# Especificar directorio de salida
+python scripts/conversion/convert_pdf_local.py "paper.pdf" --output_dir "mi_carpeta"
+```
+
+#### 3. **Generar Chunks Parafraseados (LLM - Manual)**
+Usa el Markdown generado para crear chunks en tus propias palabras.
+
+**Pasos:**
+1. Abre `scripts/chunking/generate_cards_local.md` (plantilla de prompt)
+2. Copia el contenido del Markdown generado en el paso 2
+3. Usa tu LLM favorito (Gemini, GPT-4, Claude, etc.) con la plantilla
+4. El LLM generará chunks en formato JSONL
+5. Guarda el resultado como `chunks_tu_paper.jsonl`
+
+**Resultado:** Archivo JSONL con chunks parafraseados
+
+#### 4. **Validar Localmente**
+Antes de hacer PR, valida que tus chunks cumplen el esquema:
+
+```bash
+python scripts/chunking/validate_chunks.py \
+  --file chunks_tu_paper.jsonl \
+  --mode schema
+```
+
+Si todo está OK, copia el archivo a `dataset/chunks_enriched/`
+
+#### 5. **Contribuir al Repositorio**
+```bash
+git checkout -b feature/add-chunks-nombre-paper
+git add dataset/chunks_enriched/chunks_tu_paper.jsonl
+git commit -m "feat: Add chunks from [Nombre Paper/Manual]"
+git push origin feature/add-chunks-nombre-paper
+```
+
+Abre un Pull Request describiendo:
+- Fuente del documento (DOI/URL si es posible)
+- Categoría cubierta (BIO/PROC/MAT/OPER/PROD)
+- Número de chunks agregados
+
+**⚠️ Recuerda:** NO subas PDFs ni Markdowns directos. Solo los chunks parafraseados en JSONL.
+
+## 🎯 Contexto del Proyecto: VermiKhipu
+
+Este dataset es parte del proyecto **VermiKhipu**, un sistema de vermicompostaje doméstico asistido por IA que opera 100% offline con interacción por voz en español.
+
+### Dominio del Conocimiento
+
+El dataset se enfoca en **vermicompostaje doméstico** (escala 1-5 kg/semana), cubriendo:
+
+- **🦠 BIOLOGÍA**: Especies de lombrices (Eisenia fetida/andrei), fisiología, comportamiento
+- **⚙️ PROCESO**: Parámetros (pH, C:N, humedad, temperatura), cinética de degradación
+- **� MATERIALES**: Residuos orgánicos, materiales secos, clasificación y restricciones
+- **🎮 OPERACIÓN**: Control de hábitat, intervenciones, calibración de actuadores
+- **🌱 PRODUCTO**: Humus maduro, lixiviados, aplicaciones y dosificación
+
+### Cobertura Actual
+
+| Categoría | Chunks Objetivo | Estado | Prioridad |
+|-----------|----------------|--------|-----------|
+| BIOLOGÍA  | 40-60          | 🔴 0%  | ALTA      |
+| PROCESO   | 60-80          | 🔴 0%  | CRÍTICA   |
+| MATERIALES| 50-70          | 🔴 0%  | ALTA      |
+| OPERACIÓN | 30-40          | 🔴 0%  | MEDIA     |
+| PRODUCTO  | 20-30          | 🔴 0%  | MEDIA     |
+
+**Meta Fase 1 (MVP):** 150-200 chunks cubriendo 70% de la taxonomía
+
+---
+
+## � Documentación
+
+- **[INSTALLATION.md](INSTALLATION.md)** - Instalación paso a paso (macOS/Windows)
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Cómo contribuir al dataset
+- **[ROADMAP.md](ROADMAP.md)** - Plan de desarrollo del proyecto
+- **[BYOS_POLICY.md](BYOS_POLICY.md)** - Política de contenido legal-safe
+- **[docs/DOMAIN_KNOWLEDGE.md](docs/DOMAIN_KNOWLEDGE.md)** - Taxonomía y dominio
+- **[docs/DATA_SCHEMA.md](docs/DATA_SCHEMA.md)** - Esquema de datos detallado
+
+---
 
 ## 📜 Licencia y Política de Contenido
 
 *   El **código** de este repositorio está bajo **Licencia MIT**.
 *   Las **contribuciones de datos** se rigen por nuestra **[Política BYOS](BYOS_POLICY.md)**, que debes leer y aceptar.
+
+---
+
+## 🛠️ Estado Actual (Fase 0)
+
+**Funcional:**
+- ✅ Conversión PDF→Markdown (`convert_pdf_local.py`)
+- ✅ Validación de esquema (`validate_chunks.py`)
+- ✅ Plantilla de generación de chunks (manual con LLM)
+- ✅ Documentación completa y estructura organizada
+
+**En Desarrollo:**
+- 🔨 Generación automatizada de chunks
+- 🔨 Sistema de embeddings y búsqueda vectorial
+- 🔨 Pruebas RAG automáticas
+- 🔨 CI/CD workflows
+
+**Próximo Hito:** Primer ciclo de ingesta MVP (10-20 chunks reales)
+
+---
 
 ¡Gracias por considerar contribuir a un recurso abierto, legal y de alta calidad para la comunidad de IA!

@@ -1,25 +1,160 @@
-# Nunca subir fuentes con copyright
+# ========== BYOS POLICY: NUNCA SUBIR FUENTES CON COPYRIGHT ==========
 
+# Directorio completo de fuentes (PDFs, MDs, DOCs)
 sources/
+sources/**/*
+
+# Tipos de archivo con copyright
 **/*.pdf
 **/*.PDF
 **/*.doc
 **/*.docx
 **/*.rtf
+**/*.odt
 **/*.html
+**/*.epub
 
-# Archivos de salida de la conversión local
-/sources/markdown_outputs/
+# Markdowns generados localmente (output de conversión)
+**/markdown_outputs/
+**/markdown_outputs/**/*
 
-# Archivos privados
+# Archivos privados y locales
 **/PRIVATE_*
 **/LOCAL_*
 *.private.*
+*.local.*
 
-# Directorio de backups
-backups/
+# ========== DATOS Y MODELOS ==========
 
-# Credenciales
+# Base de datos vectorial (puede ser grande)
+data/lancedb/
+*.lance
+*.parquet
+
+# Cache de modelos
+.cache/
+models/
+*.pt
+*.pth
+*.onnx
+*.bin
+
+# ========== PYTHON ==========
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+.env/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# ========== CREDENCIALES Y CONFIGURACIÓN ==========
+
+# Environment variables con secretos
+.env
 .env.local
 .env.*.local
+*.env
+
+# API keys y tokens
+**/credentials.json
+**/secrets.json
+**/*_key.txt
+**/*_token.txt
+
+# ========== LOGS Y TEMPORAL ==========
+
+# Logs
+logs/
+*.log
+log.txt
+
+# Temporal
+tmp/
+temp/
+.tmp/
+*.tmp
+*.swp
+*.swo
+*~
+
+# Backups
+backups/
+*.bak
+*.backup
+
+# ========== IDE Y OS ==========
+
+# VSCode
+.vscode/
+*.code-workspace
+
+# PyCharm
+.idea/
+*.iml
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+
+# ========== GITHUB ACTIONS ==========
+
+# Artifacts locales de CI
+.github/workflows/*.local.yml
 
