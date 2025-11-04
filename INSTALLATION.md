@@ -102,7 +102,7 @@ Ver sección [Configuración de .env](#-configuración-de-env) más abajo.
 
 ### 7. Verificar Instalación
 ```bash
-python scripts/conversion/convert_pdf_local.py --help
+python scripts/conversion/adaptive_converter.py --help
 ```
 
 Si ves el mensaje de ayuda sin errores, ¡estás listo!
@@ -186,7 +186,7 @@ notepad .env
 
 ### 9. Verificar Instalación
 ```powershell
-python scripts\conversion\convert_pdf_local.py --help
+python scripts\conversion\adaptive_converter.py --help
 ```
 
 ---
@@ -198,7 +198,7 @@ El archivo `.env` contiene variables de configuración. Copia `.env.example` y e
 ```bash
 # ========== CONVERSIÓN PDF → MARKDOWN ==========
 # Directorio donde se guardan los Markdowns (ignorado por Git)
-MARKDOWN_OUTPUT_DIR=sources/markdown_outputs
+MARKDOWN_OUTPUT_DIR=sources_local/markdown_outputs
 
 # Dispositivo para marker-sdk: cpu, cuda, mps (Mac)
 MARKER_DEVICE=cpu
@@ -260,10 +260,10 @@ mkdir -p test_data
 curl -o test_data/sample.pdf "https://arxiv.org/pdf/2301.00001.pdf"
 
 # Convertir a Markdown
-python scripts/conversion/convert_pdf_local.py test_data/sample.pdf
+python scripts/conversion/adaptive_converter.py test_data/sample.pdf
 
 # Verificar salida
-ls sources/markdown_outputs/sample.md
+ls sources_local/markdown_outputs/sample.md
 ```
 
 ---

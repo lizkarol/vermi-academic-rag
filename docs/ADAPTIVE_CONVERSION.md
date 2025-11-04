@@ -53,7 +53,7 @@ pdfplumber marker-pdf docling  fallback
 |------------|---------|-----------|------------|
 | **pdfplumber** | 0.11.4 | PDFs nativos | ~5-10s/50pág |
 | **marker-pdf** | ≥1.0.0 | PDFs escaneados | ~5-7min GPU |
-| **docling** | ≥2.18.0 | PDFs mixtos | ~30-60s |
+| **docling** | ≥2.18.0 | PDFs mixtos | **(Pendiente)** ~30-60s |
 | **EasyOCR** | 1.7.1 | OCR backend | Con marker |
 | **PyTorch** | 2.5.1 | GPU (CUDA/MPS) | Crítico |
 
@@ -128,7 +128,7 @@ Estrategia: pdfplumber (rápido, alta fidelidad)
 ```python
 from adaptive_converter import AdaptivePDFConverter
 
-converter = AdaptivePDFConverter(sources_local_dir="sources_local")
+converter = AdaptivePDFConverter(sources_dir="sources")
 result = converter.convert_single("paper.pdf")
 
 if result["success"]:
@@ -182,20 +182,21 @@ markdown, metadata = converter._convert_scanned(pdf_path, conversion_id)
 - Requiere GPU para performance aceptable
 - Cleanup automático con gemma3:12b (opcional)
 
-### 3. MIXED: PDFs Híbridos
+### 3. MIXED: PDFs Híbridos (Pendiente)
 
-**Herramienta:** docling (con fallback a pdfplumber)  
-**Performance:** 30-60 segundos para 50 páginas  
+**Herramienta:** `docling` (con fallback a `pdfplumber`)  
+**Performance:** 30-60 segundos para 50 páginas (estimado)  
 **Uso:**
 ```python
 # Automático si PDFTypeDetector detecta MIXED
+# Actualmente usa el fallback a _convert_native
 markdown, metadata = converter._convert_mixed(pdf_path, conversion_id)
 ```
 
 **Características:**
 - Detección inteligente de regiones
 - OCR solo donde es necesario
-- Fallback a pdfplumber si docling no está instalado
+- **Actualmente, esta estrategia no está implementada y el sistema utiliza `_convert_native` como fallback.**
 
 ---
 
@@ -272,16 +273,25 @@ python scripts/conversion/adaptive_converter.py paper.pdf --ollama
 
 ```
 vermi-academic-rag/
-├── sources_local/              # Local only (ignorado por Git)
+├── sources_local/                    # Local only (ignorado por Git)
 │   ├── originals/             # PDFs originales
 │   ├── converted/             # Markdowns generados
 │   ├── metadata/              # conversion_tracker.db
 │   └── reports/               # Reportes JSON (si usa --ollama)
+├── data/                       # Datos procesados
+│   ├── raw/                   # PDFs backup
+│   ├── processed/             # Chunks procesados
+│   ├── embeddings/            # Cache de embeddings
+│   ├── metadata/              # Perfiles de conversión
+│   └── validation/            # Reportes de validación
+├── config/
+│   └── profiles/              # Perfiles de conversión personalizados
 ├── scripts/
 │   └── conversion/
 │       ├── adaptive_converter.py      # Conversor principal
 │       ├── pdf_type_detector.py       # Detector de tipo
 │       ├── conversion_db.py           # Sistema de tracking
+│       ├── conversion_profiles.py     # Sistema de perfiles
 │       └── requirements.txt           # Dependencias
 └── docs/
     └── ADAPTIVE_CONVERSION.md         # Esta guía
@@ -366,7 +376,8 @@ Opciones:
   --force              Forzar reconversión (ignorar duplicados)
   --ollama             Activar validación con gemma3:12b
   --strategy TIPO      Forzar estrategia (native/scanned/mixed)
-  --sources-dir DIR    Directorio sources_local custom
+  --sources-dir DIR    Directorio sources custom
+  --profile NOMBRE     Usar perfil de conversión personalizado
   --help               Mostrar ayuda completa
 ```
 
@@ -377,7 +388,7 @@ from adaptive_converter import AdaptivePDFConverter
 
 # Configuración avanzada
 converter = AdaptivePDFConverter(
-    sources_local_dir="sources_local",
+    sources_dir="sources",
     use_ollama=True,
     ollama_url="http://localhost:11434",
     ollama_model="gemma3:12b",

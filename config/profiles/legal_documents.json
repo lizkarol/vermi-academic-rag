@@ -1,0 +1,55 @@
+{
+  "name": "legal_documents",
+  "description": "Documentos legales con estructura formal",
+  "preferred_strategy": null,
+  "force_ocr": false,
+  "ocr_languages": [
+    "es",
+    "en"
+  ],
+  "normalization": {
+    "name": "legal_structure",
+    "description": "Artículos, Títulos, Capítulos",
+    "institution": null,
+    "document_type": "legal",
+    "citation_style": "custom",
+    "heading_style": "keyword",
+    "heading_keywords": [
+      "Título",
+      "Capítulo",
+      "Artículo",
+      "Sección",
+      "Parte",
+      "Anexo",
+      "Disposición"
+    ],
+    "max_heading_level": 6,
+    "start_level_offset": 1,
+    "page_marker_pattern": null,
+    "footer_pattern": null,
+    "header_pattern": null,
+    "min_chars_for_heading": 3,
+    "max_chars_for_heading": 200,
+    "uppercase_is_heading": true,
+    "detect_bold_as_heading": true,
+    "merge_fragmented_lines": true,
+    "min_line_length_for_merge": 60,
+    "preserve_tables": true,
+    "preserve_images": true,
+    "extract_image_captions": true,
+    "preserve_metadata": false,
+    "extract_bibliography": true,
+    "llm_validation": false,
+    "fidelity_threshold": 0.7,
+    "tags": [
+      "legal",
+      "legislación",
+      "reglamento"
+    ]
+  },
+  "quick_detection": true,
+  "enable_gpu": true,
+  "batch_size": 1,
+  "save_intermediate_files": false,
+  "generate_report": true
+}

@@ -28,6 +28,7 @@ Debido a las restricciones de derechos de autor de los papers académicos y manu
     - **PDFs escaneados** (imagen): marker-pdf + EasyOCR + GPU (🔬 5-7min)
     - **PDFs mixtos** (híbridos): docling con detección automática (⚖️ 30-60s)
     - Tracking con SQLite (detección de duplicados por SHA-256)
+    - **Post-procesamiento con normalización** (jerarquía, limpieza, fusión de líneas)
     - Validación opcional con Ollama gemma3:12b (local, BYOS)
 
 #### Herramientas de Validación:
@@ -78,16 +79,20 @@ python scripts/conversion/adaptive_converter.py paper.pdf
 # 3. Con validación Ollama (opcional, +10-30s)
 python scripts/conversion/adaptive_converter.py paper.pdf --ollama
 
-# 4. Forzar estrategia específica (debug)
+# 4. Sin normalización de markdown (solo conversión cruda)
+python scripts/conversion/adaptive_converter.py paper.pdf --no-normalize
+
+# 5. Forzar estrategia específica (debug)
 python scripts/conversion/adaptive_converter.py paper.pdf --strategy scanned
 
-# 5. Forzar reconversión (ignorar duplicados)
+# 6. Forzar reconversión (ignorar duplicados)
 python scripts/conversion/adaptive_converter.py paper.pdf --force
 ```
 
 **Salida:** 
-- `sources_local/converted/paper.md` (Markdown generado)
+- `sources_local/converted/paper.md` (Markdown generado y normalizado)
 - `sources_local/metadata/conversion_tracker.db` (Tracking SQLite)
+- `sources_local/reports/paper_normalization.json` (Reporte de cambios aplicados)
 - `sources_local/reports/paper_validation.json` (Si usas --ollama)
 
 **Performance:**
@@ -97,6 +102,9 @@ python scripts/conversion/adaptive_converter.py paper.pdf --force
 
 **Características avanzadas:**
 - ✅ Detección de duplicados por hash SHA-256
+- ✅ **Post-procesamiento de normalización automático** (jerarquía, limpieza, fusión)
+- ✅ **Soporte multi-formato**: APA, Vancouver, IEEE, Chicago, Harvard, MLA, ISO
+- ✅ **Detección inteligente**: Decimal, Romano, Letras, Palabras clave
 - ✅ Validación de fidelidad con gemma3:12b (Ollama)
 - ✅ Extracción de tablas con pdfplumber
 - ✅ Hardware detection automático (MPS/CUDA/CPU)
@@ -178,6 +186,7 @@ El dataset se enfoca en **vermicompostaje doméstico** (escala 1-5 kg/semana), c
 - **[BYOS_POLICY.md](BYOS_POLICY.md)** - Política de contenido legal-safe
 - **[docs/DOMAIN_KNOWLEDGE.md](docs/DOMAIN_KNOWLEDGE.md)** - Taxonomía y dominio
 - **[docs/DATA_SCHEMA.md](docs/DATA_SCHEMA.md)** - Esquema de datos detallado
+- **[docs/MARKDOWN_NORMALIZATION.md](docs/MARKDOWN_NORMALIZATION.md)** - Sistema de post-procesamiento
 
 ---
 
@@ -191,7 +200,8 @@ El dataset se enfoca en **vermicompostaje doméstico** (escala 1-5 kg/semana), c
 ## 🛠️ Estado Actual (Fase 0)
 
 **Funcional:**
-- ✅ Conversión PDF→Markdown (`convert_pdf_local.py`)
+- ✅ Conversión PDF→Markdown con sistema adaptativo (`adaptive_converter.py`)
+- ✅ Post-procesamiento de normalización (`markdown_normalizer.py`)
 - ✅ Validación de esquema (`validate_chunks.py`)
 - ✅ Plantilla de generación de chunks (manual con LLM)
 - ✅ Documentación completa y estructura organizada

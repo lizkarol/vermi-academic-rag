@@ -24,7 +24,7 @@ scripts/
 
 | Script | Propósito | Uso |
 |--------|-----------|-----|
-| `convert_pdf_local.py` | Convierte PDF a MD con alta fidelidad | `python scripts/conversion/convert_pdf_local.py paper.pdf` |
+| `adaptive_converter.py` | Convierte PDF a MD con alta fidelidad | `python scripts/conversion/adaptive_converter.py paper.pdf` |
 
 **Prioridad:** 🔴 CRÍTICA - Este es el primer paso del flujo BYOS
 
@@ -52,9 +52,9 @@ scripts/
 ```
 1. PDF Local
    ↓
-   python scripts/conversion/convert_pdf_local.py paper.pdf
+   python scripts/conversion/adaptive_converter.py paper.pdf
    ↓
-2. Markdown (sources/markdown_outputs/)
+2. Markdown (sources_local/markdown_outputs/)
    ↓
    [Usar LLM con template en generate_cards_local.md]
    ↓

@@ -21,9 +21,12 @@ Validación opcional: Ollama gemma3:12b (local, BYOS compliant)
 import logging
 import time
 import sys
+import os
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple
 import json
+import re
+import statistics
 
 # Agregar directorio padre al path para imports
 script_dir = Path(__file__).parent
@@ -31,12 +34,27 @@ sys.path.insert(0, str(script_dir))
 
 from pdf_type_detector import PDFTypeDetector, PDFType
 from conversion_db import ConversionTracker
+from markdown_normalizer import MarkdownNormalizer, normalize_markdown_file
+from conversion_profiles import ProfileManager, ConversionProfile
+from profile_detector import ProfileDetector
 
 # Lazy imports (solo cargar lo necesario)
 _pdfplumber = None
 _marker = None
 _docling = None
 _torch = None
+
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - opcional
+    load_dotenv = None
+
+if load_dotenv:
+    env_file = os.getenv("CONVERSION_ENV_FILE")
+    if env_file and Path(env_file).exists():
+        load_dotenv(env_file)
+    else:
+        load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -100,10 +118,20 @@ def _import_torch():
             import torch
             _torch = torch
         except ImportError:
-            raise ImportError(
-                "PyTorch no instalado. Ver instrucciones en requirements.txt"
-            )
+            logger.warning("⚠️  PyTorch no encontrado, usando fallback CPU.")
+            _torch = False
     return _torch
+
+
+def _resolve_env_path(var_name: str, fallback: Path, project_root: Path) -> Path:
+    """Resuelve rutas tomando en cuenta valores en .env (relativas o absolutas)."""
+    value = os.getenv(var_name)
+    if not value:
+        return fallback
+    candidate = Path(value)
+    if not candidate.is_absolute():
+        candidate = project_root / candidate
+    return candidate
 
 
 class HardwareConfig:
@@ -112,6 +140,15 @@ class HardwareConfig:
     def __init__(self):
         """Detecta hardware disponible."""
         torch = _import_torch()
+        
+        if not torch:
+            self.device = "cpu"
+            self.device_name = "CPU (sin PyTorch)"
+            self.device_memory = None
+            self.workers = 1
+            self.batch_size = 1
+            logger.info("🖥️  PyTorch ausente, usando configuración CPU básica")
+            return
         
         # Detectar device
         if torch.cuda.is_available():
@@ -156,41 +193,67 @@ class AdaptivePDFConverter:
     - MIXED: docling (balanceado)
     
     Ejemplo:
-        >>> converter = AdaptivePDFConverter(sources_local_dir="sources_local")
+        >>> converter = AdaptivePDFConverter(sources_dir="sources")
         >>> result = converter.convert_single("paper.pdf")
         >>> print(f"Markdown: {result['markdown_path']}")
     """
     
     def __init__(
         self,
-        sources_local_dir: str = "sources_local",
+        sources_dir: str = "sources",
         use_ollama: bool = False,
         ollama_url: str = "http://localhost:11434",
         ollama_model: str = "gemma3:12b",
-        force_strategy: Optional[str] = None
+        force_strategy: Optional[str] = None,
+        normalize: bool = True,
+        profile: Optional[str] = None
     ):
         """
         Inicializa el convertidor.
         
         Args:
-            sources_local_dir: Directorio base para fuentes locales
+            sources_dir: Directorio base para fuentes (default: sources)
             use_ollama: Activar validación con Ollama
             ollama_url: URL del servidor Ollama
             ollama_model: Modelo LLM a usar
             force_strategy: Forzar estrategia ("native", "scanned", "mixed")
+            normalize: Activar post-procesamiento de normalización (default: True)
+            profile: Nombre del perfil de conversión a usar (ej: "academic_apa", "universidad_de_chile_thesis")
         """
-        # Resolver path absoluto desde raíz del proyecto
-        if not Path(sources_local_dir).is_absolute():
-            # Si es relativo, asumir que es desde la raíz del proyecto
-            project_root = Path(__file__).parent.parent.parent
-            self.sources_dir = project_root / sources_local_dir
-        else:
-            self.sources_dir = Path(sources_local_dir)
+        project_root = Path(__file__).parent.parent.parent
         
-        self.originals_dir = self.sources_dir / "originals"
-        self.converted_dir = self.sources_dir / "converted"
-        self.metadata_dir = self.sources_dir / "metadata"
-        self.reports_dir = self.sources_dir / "reports"
+        provided_dir = Path(sources_dir)
+        if not provided_dir.is_absolute():
+            provided_dir = project_root / provided_dir
+        
+        # Permitir override desde .env únicamente cuando se usa el valor por defecto
+        if sources_dir == "sources":
+            env_sources = os.getenv("SOURCES_DIR")
+            if env_sources:
+                provided_dir = _resolve_env_path("SOURCES_DIR", provided_dir, project_root)
+        
+        self.sources_dir = provided_dir
+        
+        self.originals_dir = _resolve_env_path(
+            "SOURCES_ORIGINALS",
+            self.sources_dir / "originals",
+            project_root
+        )
+        self.converted_dir = _resolve_env_path(
+            "SOURCES_CONVERTED",
+            self.sources_dir / "converted",
+            project_root
+        )
+        self.metadata_dir = _resolve_env_path(
+            "SOURCES_METADATA",
+            self.sources_dir / "metadata",
+            project_root
+        )
+        self.reports_dir = _resolve_env_path(
+            "SOURCES_REPORTS",
+            self.sources_dir / "reports",
+            project_root
+        )
         
         # Crear directorios si no existen
         for dir_path in [self.originals_dir, self.converted_dir, 
@@ -210,6 +273,25 @@ class AdaptivePDFConverter:
         self.use_ollama = use_ollama
         self.ollama_url = ollama_url
         self.ollama_model = ollama_model
+        
+        # Sistema de perfiles
+        self.profile = profile  # Guardar nombre del perfil
+        self.profile_manager = ProfileManager()
+        self.profile_detector = ProfileDetector(self.profile_manager)  # Detector automático
+        self.active_profile: Optional[ConversionProfile] = None
+        if profile:
+            self.active_profile = self.profile_manager.get_profile(profile)
+            if self.active_profile:
+                logger.info(f"✅ Perfil activo: {profile}")
+                # Aplicar configuración del perfil
+                if self.active_profile.preferred_strategy:
+                    self.force_strategy = self.active_profile.preferred_strategy
+            else:
+                logger.warning(f"⚠️  Perfil '{profile}' no encontrado, usando configuración por defecto")
+        
+        # Post-procesamiento
+        self.normalize = normalize
+        self.normalizer = MarkdownNormalizer() if normalize else None
         
         if self.use_ollama:
             if not self._check_ollama():
@@ -248,64 +330,72 @@ class AdaptivePDFConverter:
     
     def _convert_native(self, pdf_path: Path, conversion_id: int) -> Tuple[str, Dict]:
         """
-        Convierte PDF nativo con pdfplumber.
+        Convierte PDF nativo priorizando preservación de estructura.
         
         Estrategia:
-        1. Extraer texto página por página
-        2. Intentar extraer tablas
-        3. Formatear como Markdown básico
+        1. Extraer palabras con metadatos (tamaño de fuente, posición)
+        2. Reconstruir líneas y detectar encabezados, listas y párrafos
+        3. Adjuntar tablas como bloques Markdown
         
-        Performance: ~5-10 segundos para 50 páginas
+        Performance: ~6-12 segundos para 50 páginas (dependiendo del contenido)
         """
-        logger.info("🚀 [NATIVE] Usando pdfplumber (rápido)")
+        logger.info("🚀 [NATIVE] Usando pdfplumber (estructura preservada)")
         
         pdfplumber = _import_pdfplumber()
         
-        markdown_parts = []
+        markdown_blocks: list[str] = []
         metadata = {
-            "converter": "pdfplumber",
+            "converter": "pdfplumber_structured",
             "strategy": "native",
             "pages": 0,
-            "tables_extracted": 0
+            "tables_extracted": 0,
+            "headings_detected": 0,
+            "list_items": 0,
+            "paragraphs": 0
         }
         
         try:
             with pdfplumber.open(pdf_path) as pdf:
                 metadata["pages"] = len(pdf.pages)
                 
-                for i, page in enumerate(pdf.pages, start=1):
-                    # Extraer texto
-                    text = page.extract_text() or ""
+                for page_number, page in enumerate(pdf.pages, start=1):
+                    page_lines = [f"## Página {page_number}"]
                     
-                    if text.strip():
-                        markdown_parts.append(f"## Página {i}\n\n{text}\n")
+                    structured_text, page_stats = self._render_page_with_structure(page)
+                    metadata["headings_detected"] += page_stats.get("headings", 0)
+                    metadata["list_items"] += page_stats.get("list_items", 0)
+                    metadata["paragraphs"] += page_stats.get("paragraphs", 0)
                     
-                    # Intentar extraer tablas
+                    if structured_text:
+                        page_lines.append("")
+                        page_lines.append(structured_text)
+                    
                     tables = page.extract_tables()
                     if tables:
                         for table in tables:
-                            if not table or len(table) == 0:
+                            table_md = self._table_to_markdown(table)
+                            if not table_md:
                                 continue
-                            
                             metadata["tables_extracted"] += 1
-                            
-                            # Convertir tabla a Markdown (manejar None)
-                            header = [str(cell or "") for cell in table[0]]
-                            if not any(header):  # Skip si header vacío
-                                continue
-                                
-                            markdown_parts.append("\n| " + " | ".join(header) + " |\n")
-                            markdown_parts.append("| " + " | ".join(["---"] * len(header)) + " |\n")
-                            
-                            for row in table[1:]:
-                                cells = [str(cell or "") for cell in row]
-                                markdown_parts.append("| " + " | ".join(cells) + " |\n")
-                            
-                            markdown_parts.append("\n")
+                            page_lines.append("")
+                            page_lines.append(table_md)
+                    
+                    page_block = "\n".join(
+                        line for line in page_lines if line is not None
+                    ).strip()
+                    
+                    if page_block:
+                        markdown_blocks.append(page_block)
                 
-                markdown = "\n".join(markdown_parts)
-                logger.info(f"✅ [NATIVE] Extraídas {metadata['pages']} páginas, "
-                           f"{metadata['tables_extracted']} tablas")
+                markdown = self._join_with_page_separators(markdown_blocks)
+                
+                logger.info(
+                    "✅ [NATIVE] Estructura preservada | "
+                    f"Páginas: {metadata['pages']} | "
+                    f"Encabezados: {metadata['headings_detected']} | "
+                    f"Listas: {metadata['list_items']} | "
+                    f"Tablas: {metadata['tables_extracted']}"
+                )
                 
                 return markdown, metadata
         
@@ -377,6 +467,308 @@ class AdaptivePDFConverter:
             logger.error(f"❌ [SCANNED] Error: {e}")
             self.tracker.add_error(conversion_id, "marker_failed", str(e))
             raise
+    
+    def _render_page_with_structure(self, page) -> Tuple[str, Dict[str, int]]:
+        """
+        Reconstruye el contenido de una página en Markdown preservando estructura básica.
+        
+        Retorna:
+            Tuple con (markdown_page, stats)
+                stats = {"headings": int, "list_items": int, "paragraphs": int}
+        """
+        stats = {"headings": 0, "list_items": 0, "paragraphs": 0}
+        
+        try:
+            words = page.extract_words(
+                extra_attrs=["size", "fontname"],
+                use_text_flow=True
+            )
+        except TypeError:
+            # Algunas versiones no soportan use_text_flow
+            words = page.extract_words(extra_attrs=["size", "fontname"])
+        except Exception:
+            words = []
+        
+        if not words:
+            fallback_text = (page.extract_text(layout=True) or "").strip()
+            if fallback_text:
+                stats["paragraphs"] = max(1, fallback_text.count("\n\n") + 1)
+            return fallback_text, stats
+        
+        size_values = [w.get("size") for w in words if w.get("size")]
+        body_size = statistics.median(size_values) if size_values else None
+        max_size = max(size_values) if size_values else None
+        base_indent = min((w.get("x0") or 0.0) for w in words)
+        
+        lines = self._group_words_into_lines(words)
+        page_output: list[str] = []
+        paragraph_buffer: list[str] = []
+        last_list_idx: Optional[int] = None
+        
+        def flush_paragraph():
+            nonlocal paragraph_buffer
+            nonlocal last_list_idx
+            if paragraph_buffer:
+                paragraph_text = " ".join(paragraph_buffer)
+                paragraph_text = self._normalize_sentence(paragraph_text)
+                if paragraph_text:
+                    page_output.append(paragraph_text)
+                    stats["paragraphs"] += 1
+                    page_output.append("")
+                paragraph_buffer = []
+            last_list_idx = None
+        
+        def append_to_active_list(text: str, indent_level: float) -> bool:
+            nonlocal last_list_idx
+            if last_list_idx is None:
+                return False
+            if indent_level <= 4:  # Requiere ligera sangría para considerar continuación
+                return False
+            continuation = AdaptivePDFConverter._normalize_sentence(text)
+            if not continuation:
+                return False
+            page_output[last_list_idx] += f" {continuation}"
+            return True
+        
+        for line_index, line_words in enumerate(lines):
+            line_text = self._join_words(line_words)
+            if not line_text:
+                flush_paragraph()
+                last_list_idx = None
+                continue
+            
+            line_sizes = [w.get("size") for w in line_words if w.get("size")]
+            avg_size = statistics.mean(line_sizes) if line_sizes else body_size
+            first_x0 = min((w.get("x0") or base_indent) for w in line_words)
+            indent = max(0.0, first_x0 - base_indent)
+            
+            heading_level = self._detect_heading(
+                line_text, avg_size, body_size, max_size, line_index
+            )
+            if heading_level:
+                flush_paragraph()
+                last_list_idx = None
+                stats["headings"] += 1
+                page_output.append(f"{'#' * heading_level} {line_text}")
+                page_output.append("")
+                continue
+            
+            bullet_line = self._format_bullet_line(line_text, indent)
+            if bullet_line:
+                flush_paragraph()
+                last_list_idx = len(page_output)
+                stats["list_items"] += 1
+                page_output.append(bullet_line)
+                continue
+            
+            numbered_line = self._format_numbered_line(line_text, indent)
+            if numbered_line:
+                flush_paragraph()
+                last_list_idx = len(page_output)
+                stats["list_items"] += 1
+                page_output.append(numbered_line)
+                continue
+            
+            if append_to_active_list(line_text, indent):
+                continue
+            
+            last_list_idx = None
+            paragraph_buffer.append(line_text)
+        
+        flush_paragraph()
+        
+        # Limpiar dobles saltos al final
+        while page_output and page_output[-1] == "":
+            page_output.pop()
+        
+        page_markdown = "\n".join(page_output).strip()
+        
+        if not page_markdown:
+            fallback = (page.extract_text(layout=True) or "").strip()
+            if fallback:
+                return fallback, stats
+        
+        return page_markdown, stats
+    
+    @staticmethod
+    def _group_words_into_lines(words: list, tolerance: float = 2.5) -> list[list[dict]]:
+        """Agrupa palabras en líneas usando tolerancia vertical."""
+        if not words:
+            return []
+        
+        sorted_words = sorted(
+            words,
+            key=lambda w: (
+                round(w.get("top", 0.0), 2),
+                w.get("x0", 0.0)
+            )
+        )
+        
+        lines: list[list[dict]] = []
+        current_line: list[dict] = []
+        last_top: Optional[float] = None
+        
+        for word in sorted_words:
+            top = word.get("top", 0.0)
+            if last_top is None or abs(top - last_top) <= tolerance:
+                current_line.append(word)
+            else:
+                if current_line:
+                    lines.append(current_line)
+                current_line = [word]
+            last_top = top
+        
+        if current_line:
+            lines.append(current_line)
+        
+        return [
+            sorted(line, key=lambda w: w.get("x0", 0.0))
+            for line in lines
+        ]
+    
+    @staticmethod
+    def _join_words(words: list[dict]) -> str:
+        """Une palabras manejando espacios y puntuación."""
+        if not words:
+            return ""
+        
+        tokens = [w.get("text", "").strip() for w in words]
+        line = " ".join(token for token in tokens if token)
+        
+        if not line:
+            return ""
+        
+        # Ajustar espacios con puntuación
+        line = re.sub(r"\s+([,.;:!?%])", r"\1", line)
+        line = re.sub(r"([(\[])\s+", r"\1", line)
+        line = re.sub(r"\s+([)\]])", r"\1", line)
+        line = re.sub(r"\s{2,}", " ", line)
+        
+        return line.strip()
+    
+    @staticmethod
+    def _normalize_sentence(text: str) -> str:
+        """Normaliza espacios y puntuación en un párrafo."""
+        cleaned = re.sub(r"\s+([,.;:!?%])", r"\1", text)
+        cleaned = re.sub(r"([(\[])\s+", r"\1", cleaned)
+        cleaned = re.sub(r"\s+([)\]])", r"\1", cleaned)
+        cleaned = re.sub(r"\s{2,}", " ", cleaned)
+        return cleaned.strip()
+    
+    @staticmethod
+    def _detect_heading(
+        text: str,
+        avg_size: Optional[float],
+        body_size: Optional[float],
+        max_size: Optional[float],
+        line_index: int
+    ) -> Optional[int]:
+        """Heurística para identificar encabezados y asignar nivel."""
+        stripped = text.strip()
+        if not stripped or len(stripped) > 140:
+            return None
+        
+        words = stripped.split()
+        heading_level = None
+        
+        if body_size and avg_size:
+            if max_size and avg_size >= max_size - 0.3:
+                heading_level = 2
+            elif avg_size >= body_size * 1.45:
+                heading_level = 2 if line_index <= 2 else 3
+            elif avg_size >= body_size * 1.25:
+                heading_level = 3
+        
+        # Heurística adicional por formato
+        if heading_level is None:
+            if re.match(r"^\d+\.\d+(?:\.\d+)*\s+[A-ZÁÉÍÓÚÑ]", stripped):
+                heading_level = 3
+        
+        # Evitar considerar oraciones con punto final como encabezado
+        if heading_level and stripped.endswith("."):
+            heading_level = None
+        
+        return heading_level
+    
+    @staticmethod
+    def _format_bullet_line(text: str, indent: float) -> Optional[str]:
+        """Formatea líneas tipo viñeta."""
+        stripped = text.strip()
+        bullet_match = re.match(r"^([\-\*\u2022•▪◦])\s+(.+)$", stripped)
+        if not bullet_match:
+            return None
+        
+        content = bullet_match.group(2).strip()
+        if not content:
+            return None
+        
+        indent_level = max(0, int(indent // 18))
+        indentation = "  " * indent_level
+        content = AdaptivePDFConverter._normalize_sentence(content)
+        return f"{indentation}- {content}"
+    
+    @staticmethod
+    def _format_numbered_line(text: str, indent: float) -> Optional[str]:
+        """Formatea listas numeradas."""
+        stripped = text.strip()
+        number_match = re.match(r"^(\d+(?:\.\d+)*)(?:[\.\)])\s+(.+)$", stripped)
+        if not number_match:
+            return None
+        
+        numbering = number_match.group(1)
+        content = number_match.group(2).strip()
+        if not content:
+            return None
+        
+        indent_level = max(0, int(indent // 18))
+        indentation = "  " * indent_level
+        content = AdaptivePDFConverter._normalize_sentence(content)
+        return f"{indentation}{numbering}. {content}"
+    
+    @staticmethod
+    def _table_to_markdown(table: list) -> str:
+        """Convierte tablas detectadas en formato Markdown."""
+        if not table or not table[0]:
+            return ""
+        
+        def _normalize_row(row):
+            return [str(cell or "").strip() for cell in row]
+        
+        header_row_index = next(
+            (idx for idx, row in enumerate(table) if any((cell or "").strip() for cell in row)),
+            None
+        )
+        if header_row_index is None:
+            return ""
+        
+        header = _normalize_row(table[header_row_index])
+        data_rows = [row for i, row in enumerate(table) if i != header_row_index]
+        
+        if not any(header):
+            header = [f"Columna {i+1}" for i in range(len(header))]
+        
+        md_lines = [
+            "| " + " | ".join(header) + " |",
+            "|" + "|".join(["---"] * len(header)) + "|"
+        ]
+        
+        for row in data_rows:
+            cells = _normalize_row(row)
+            if not any(cells):
+                continue
+            if len(cells) < len(header):
+                cells += [""] * (len(header) - len(cells))
+            md_lines.append("| " + " | ".join(cells) + " |")
+        
+        return "\n".join(md_lines)
+    
+    @staticmethod
+    def _join_with_page_separators(blocks: list[str]) -> str:
+        """Une bloques de página con separadores visibles."""
+        cleaned = [block.strip() for block in blocks if block and block.strip()]
+        if not cleaned:
+            return ""
+        return ("\n\n---\n\n".join(cleaned)).strip()
     
     def _convert_mixed(self, pdf_path: Path, conversion_id: int) -> Tuple[str, Dict]:
         """
@@ -462,7 +854,16 @@ class AdaptivePDFConverter:
                 "markdown_path": existing_conversion.get("markdown_path")
             }
         
-        # 3. Registrar en DB
+        # 3. Detección automática de perfil (si no se especificó uno)
+        profile_detection_info = {}
+        if not self.profile and not self.active_profile:
+            logger.info("🔍 Detectando perfil automáticamente...")
+            detected_profile, profile_detection_info = self.profile_detector.detect_profile(pdf_path, quick=True)
+            self.profile = detected_profile
+            self.active_profile = self.profile_manager.get_profile(detected_profile)
+            logger.info(f"✅ Perfil auto-detectado: {detected_profile} (confianza: {profile_detection_info.get('confidence', 0):.0%})")
+        
+        # 4. Registrar en DB
         conversion_id = self.tracker.add_conversion(
             pdf_path=pdf_path,
             pdf_name=pdf_path.name,
@@ -470,7 +871,7 @@ class AdaptivePDFConverter:
         )
         
         try:
-            # 4. Detectar tipo de PDF
+            # 5. Detectar tipo de PDF
             if self.force_strategy:
                 pdf_type = PDFType(self.force_strategy)
                 detection_stats = {"forced": True}
@@ -496,6 +897,33 @@ class AdaptivePDFConverter:
             
             logger.info(f"💾 Markdown guardado: {md_path}")
             
+            # 6.5 Post-procesar con normalización (nuevo)
+            normalization_report = None
+            if self.normalize and self.normalizer:
+                logger.info("🔄 Aplicando post-procesamiento de normalización...")
+                try:
+                    norm_result = self.normalizer.normalize(markdown)
+                    
+                    # Guardar markdown normalizado
+                    normalized_md = norm_result['markdown']
+                    md_path.write_text(normalized_md, encoding="utf-8")
+                    
+                    # Guardar reporte de normalización
+                    norm_report_path = self.reports_dir / f"{pdf_path.stem}_normalization.json"
+                    with open(norm_report_path, 'w', encoding='utf-8') as f:
+                        json.dump({
+                            "validation": norm_result['validation'],
+                            "changes_count": len(norm_result['changes']),
+                            "changes": norm_result['changes'][:20]
+                        }, f, indent=2, ensure_ascii=False)
+                    
+                    normalization_report = norm_result['validation']
+                    logger.info(f"✅ Normalización completada - Fidelidad: {normalization_report['fidelity_score']:.1f}%")
+                    logger.info(f"📊 Reporte: {norm_report_path}")
+                except Exception as e:
+                    logger.warning(f"⚠️  Error en normalización: {e}")
+                    normalization_report = {"error": str(e)}
+            
             # 7. Validar con Ollama (opcional)
             validation_report = None
             if self.use_ollama:
@@ -516,6 +944,9 @@ class AdaptivePDFConverter:
                 pages=conv_metadata.get("pages", 0),
                 has_tables=conv_metadata.get("tables_extracted", 0) > 0,
                 conversion_time_seconds=elapsed,
+                pdf_type=pdf_type.value,
+                profile_used=self.profile,
+                fidelity_score=normalization_report.get("fidelity_score") if normalization_report else None,
                 notes=json.dumps({
                     **conv_metadata,
                     "detection": detection_stats,
@@ -534,7 +965,8 @@ class AdaptivePDFConverter:
                 "metadata": conv_metadata,
                 "conversion_id": conversion_id,
                 "elapsed_time": elapsed,
-                "validation": validation_report
+                "validation": validation_report,
+                "normalization": normalization_report
             }
         
         except Exception as e:
@@ -608,13 +1040,20 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description="Convertidor Adaptativo PDF→Markdown")
-    parser.add_argument("pdf", help="Archivo PDF a convertir")
+    parser.add_argument("pdf", nargs='?', help="Archivo PDF a convertir")
     parser.add_argument("--force", action="store_true", help="Forzar reconversión")
     parser.add_argument("--ollama", action="store_true", help="Activar validación Ollama")
+    parser.add_argument("--no-normalize", action="store_true", help="Desactivar post-procesamiento")
     parser.add_argument("--strategy", choices=["native", "scanned", "mixed"], 
                        help="Forzar estrategia (debug)")
-    parser.add_argument("--sources-dir", default="sources_local", 
-                       help="Directorio sources_local (default: sources_local)")
+    parser.add_argument("--sources-dir", default="sources", 
+                       help="Directorio de fuentes (default: sources)")
+    parser.add_argument("--profile", type=str,
+                       help="Usar perfil de conversión (ej: academic_apa, universidad_de_chile_thesis)")
+    parser.add_argument("--list-profiles", action="store_true",
+                       help="Listar perfiles disponibles y salir")
+    parser.add_argument("--create-profile", type=str, metavar="UNIVERSITY_NAME",
+                       help="Crear perfil personalizado para una universidad")
     
     args = parser.parse_args()
     
@@ -624,11 +1063,55 @@ if __name__ == "__main__":
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
     
+    # Comando: Listar perfiles
+    if args.list_profiles:
+        manager = ProfileManager()
+        print("\n" + "="*60)
+        print("📋 PERFILES DISPONIBLES")
+        print("="*60)
+        for name in manager.list_profiles():
+            profile = manager.get_profile(name)
+            print(f"\n🔹 {name}")
+            print(f"   Descripción: {profile.description}")
+            if profile.normalization.institution:
+                print(f"   Institución: {profile.normalization.institution}")
+            print(f"   Estilo: {profile.normalization.citation_style}")
+            print(f"   Encabezados: {profile.normalization.heading_style}")
+        print("\n" + "="*60)
+        sys.exit(0)
+    
+    # Comando: Crear perfil
+    if args.create_profile:
+        from conversion_profiles import CitationStyle, HeadingStyle
+        manager = ProfileManager()
+        
+        print(f"\n📝 Creando perfil para: {args.create_profile}")
+        profile = manager.create_university_profile(
+            university_name=args.create_profile,
+            citation_style=CitationStyle.APA,  # Por defecto
+            heading_style=HeadingStyle.DECIMAL
+        )
+        
+        if manager.save_profile(profile):
+            print(f"✅ Perfil creado: {profile.name}")
+            print(f"💾 Guardado en: {manager.profiles_dir / f'{profile.name}.json'}")
+            print(f"\n💡 Uso: python adaptive_converter.py documento.pdf --profile {profile.name}")
+        else:
+            print(f"❌ Error creando perfil")
+        
+        sys.exit(0)
+    
+    # Verificar que se proporcionó PDF
+    if not args.pdf:
+        parser.error("Se requiere especificar un archivo PDF")
+    
     # Convertir
     converter = AdaptivePDFConverter(
-        sources_local_dir=args.sources_dir,
+        sources_dir=args.sources_dir,
         use_ollama=args.ollama,
-        force_strategy=args.strategy
+        force_strategy=args.strategy,
+        normalize=not args.no_normalize,
+        profile=args.profile
     )
     
     result = converter.convert_single(
@@ -643,6 +1126,9 @@ if __name__ == "__main__":
         print(f"🔧 Estrategia: {result.get('strategy', 'N/A')}")
         print(f"📝 Markdown: {result.get('markdown_path', 'N/A')}")
         print(f"⏱️  Tiempo: {result.get('elapsed_time', 0):.1f}s")
+        
+        if result.get('normalization'):
+            print(f"📊 Fidelidad: {result['normalization'].get('fidelity_score', 'N/A')}%")
         
         if result.get('validation'):
             print(f"🤖 Score Ollama: {result['validation'].get('quality_score', 'N/A')}")

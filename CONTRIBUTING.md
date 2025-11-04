@@ -38,15 +38,15 @@ source venv/bin/activate  # macOS/Linux
 # .\venv\Scripts\Activate.ps1  # Windows
 
 # 2. Convierte tu PDF (permanece local, NO se sube)
-python scripts/conversion/convert_pdf_local.py "ruta/a/tu/paper.pdf"
+python scripts/conversion/adaptive_converter.py "ruta/a/tu/paper.pdf"
 
-# Salida: sources/markdown_outputs/tu_paper.md
+# Salida: sources_local/markdown_outputs/tu_paper.md
 ```
 
 **Puntos clave:**
 - Este paso usa `marker-sdk` para preservar tablas, figuras y ecuaciones
 - El MD generado es tu "materia prima" para el siguiente paso
-- **Permanece local**: `sources/` está en `.gitignore`
+- **Permanece local**: `sources_local/` está en `.gitignore`
 
 ### Fase 2: Generación de Chunks (Markdown → JSONL)
 
@@ -183,7 +183,7 @@ Una vez abierto el PR, se realizará:
 ### 3. Mejorar Herramientas (Scripts)
 
 **Áreas de mejora:**
-- Optimizar `convert_pdf_local.py` para casos complejos (tablas multi-página)
+- Optimizar `adaptive_converter.py` para casos complejos (tablas multi-página)
 - Mejorar validaciones semánticas en `validate_chunks.py`
 - Desarrollar script de generación automatizada de chunks
 - Implementar sistema de embeddings y búsqueda vectorial

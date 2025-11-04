@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class ConversionTracker:
     """Gestiona el tracking de conversiones PDF en base de datos SQLite."""
     
-    def __init__(self, db_dir: str = "sources_local/metadata"):
+    def __init__(self, db_dir: str = "sources/metadata"):
         """
         Inicializa tracker.
         
@@ -55,7 +55,10 @@ class ConversionTracker:
                 language TEXT DEFAULT 'unknown',
                 conversion_time_seconds REAL,
                 confidence_score INTEGER DEFAULT 0,
-                notes TEXT
+                notes TEXT,
+                pdf_type TEXT DEFAULT 'unknown',
+                profile_used TEXT,
+                fidelity_score REAL
             )
         """)
         
@@ -166,8 +169,8 @@ class ConversionTracker:
                 pdf_filename, pdf_path, pdf_hash, pdf_size_bytes,
                 status, created_at, updated_at,
                 pages, has_tables, has_equations, is_scanned,
-                language, notes
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                language, notes, pdf_type, profile_used, fidelity_score
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             pdf_path.name,
             str(pdf_path),
@@ -181,7 +184,10 @@ class ConversionTracker:
             kwargs.get('has_equations', False),
             kwargs.get('is_scanned', False),
             kwargs.get('language', 'unknown'),
-            kwargs.get('notes', '')
+            kwargs.get('notes', ''),
+            kwargs.get('pdf_type', 'unknown'),
+            kwargs.get('profile_used'),
+            kwargs.get('fidelity_score')
         ))
         
         self.conn.commit()
@@ -351,7 +357,7 @@ class ConversionTracker:
 
 
 # Funciones auxiliares para uso rápido
-def get_tracker(db_path: str = "sources_local/metadata/conversion_tracker.db") -> ConversionTracker:
+def get_tracker(db_path: str = "sources/metadata/conversion_tracker.db") -> ConversionTracker:
     """Factory function para obtener tracker."""
     return ConversionTracker(db_path)
 

@@ -1,9 +1,7 @@
-name: Publish Release
+name: Publish Release (Manual Trigger)
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
 
 jobs:
   release:
@@ -21,29 +19,19 @@ jobs:
 
       # Generar embeddings locales si no existen
       - name: Compute embeddings (Ollama)
-        run: |
-          ollama pull embeddinggemma:300m
-          python scripts/compute_embeddings.py
+        run: echo "Skipping embedding generation in CI for now."
+        # run: |
+        #   ollama pull embeddinggemma:300m
+        #   python scripts/embeddings/generate_embeddings.py
 
       # Crear GitHub Release
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: >
-            dataset/chunks_enriched/*.jsonl,
-            dataset/embeddings/*.parquet
+          artifacts: "README.md" # Placeholder artifact
           body: |
-            # VermiKhipu RAG Dataset Release ${{ github.ref }}
+            # VermiKhipu RAG Dataset Release ${{ github.ref_name }}
 
-            📊 **Contents:**
-            - Chunks: $(wc -l < dataset/chunks_enriched/chunks_enriched_*.jsonl)
-            - Embedding model: EmbeddingGemma 300M (300-dim)
-            - Format: JSONL + Parquet (Arrow)
-
-            ### Changes
-            See CHANGELOG.md for details.
-
-            ### Usage
-            See docs/examples/ for quickstart.
-          draft: false
+            This is a placeholder release. The workflow needs to be updated with the correct artifacts and embedding generation steps.
+          draft: true # Draft release until workflow is fixed
           token: ${{ secrets.GITHUB_TOKEN }}

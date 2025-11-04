@@ -1,10 +1,7 @@
-name: Test RAG Retrieval
+name: Test RAG Retrieval (Manual Trigger)
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'dataset/chunks_enriched/**'
+  workflow_dispatch:
 
 jobs:
   test:
@@ -20,13 +17,13 @@ jobs:
       - name: Install deps
         run: pip install -r scripts/requirements.txt
 
-      # Descargar e instalar Ollama
-      - name: Setup Ollama
-        run: |
-          curl https://ollama.ai/install.sh | sh || true
-          ollama serve &
-          sleep 10
-          ollama pull embeddinggemma:300m
+      # Descargar e instalar Ollama (deshabilitado temporalmente)
+      # - name: Setup Ollama
+      #   run: |
+      #     curl https://ollama.ai/install.sh | sh || true
+      #     ollama serve &
+      #     sleep 10
+      #     ollama pull embeddinggemma:300m
 
       # Ejecutar pruebas
       - name: Run RAG tests

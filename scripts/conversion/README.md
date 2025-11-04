@@ -21,10 +21,10 @@ Sistema completo de conversión con tracking, validación y fidelidad mejorada.
 
 ```
 scripts/conversion/
-├── convert_pdf_robust.py   # Conversor principal (robusto)
+├── adaptive_converter.py   # Conversor principal (robusto)
 ├── batch_convert.py         # Procesamiento batch
 ├── conversion_db.py         # Sistema de tracking SQLite
-├── convert_pdf_local.py     # Versión simple (legacy)
+├── adaptive_converter.py     # Versión simple (legacy)
 └── README.md               # Esta guía
 ```
 
@@ -36,16 +36,16 @@ scripts/conversion/
 
 ```bash
 # Conversión básica
-python scripts/conversion/convert_pdf_robust.py paper.pdf
+python scripts/conversion/adaptive_converter.py paper.pdf
 
 # Con OCR forzado (para PDFs escaneados)
-python scripts/conversion/convert_pdf_robust.py scanned.pdf --force-ocr
+python scripts/conversion/adaptive_converter.py scanned.pdf --force-ocr
 
 # Sin validación Ollama
-python scripts/conversion/convert_pdf_robust.py paper.pdf --no-ollama
+python scripts/conversion/adaptive_converter.py paper.pdf --no-ollama
 
 # Forzar reconversión (ignorar duplicados)
-python scripts/conversion/convert_pdf_robust.py paper.pdf --force
+python scripts/conversion/adaptive_converter.py paper.pdf --force
 ```
 
 ### Conversión Batch (Directorio Completo)
@@ -232,14 +232,14 @@ Markdown Output → sources_local/converted/
 ### Cambiar Modelo Ollama
 
 ```bash
-python convert_pdf_robust.py paper.pdf \
+python adaptive_converter.py paper.pdf \
   --ollama-model "llama3:8b"
 ```
 
 ### Cambiar URL Ollama
 
 ```bash
-python convert_pdf_robust.py paper.pdf \
+python adaptive_converter.py paper.pdf \
   --ollama-url "http://remote-server:11434"
 ```
 
@@ -294,7 +294,7 @@ pip install pdfplumber
 
 ```bash
 # Paper en inglés, nativo (con texto embebido)
-python scripts/conversion/convert_pdf_robust.py \
+python scripts/conversion/adaptive_converter.py \
   research_paper_2024.pdf
 
 # Output:
@@ -306,7 +306,7 @@ python scripts/conversion/convert_pdf_robust.py \
 
 ```bash
 # PDF escaneado, OCR necesario
-python scripts/conversion/convert_pdf_robust.py \
+python scripts/conversion/adaptive_converter.py \
   old_thesis.pdf \
   --force-ocr
 
@@ -339,7 +339,7 @@ Una vez convertido a Markdown:
 
 ```bash
 # 1. Conversión (aquí)
-python convert_pdf_robust.py paper.pdf
+python adaptive_converter.py paper.pdf
 
 # 2. Generación de chunks (manual con LLM)
 # Usar sources_local/converted/paper.md

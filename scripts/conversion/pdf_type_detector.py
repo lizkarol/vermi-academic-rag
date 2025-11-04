@@ -180,7 +180,7 @@ if __name__ == "__main__":
     
     if len(sys.argv) < 2:
         print("Uso: python pdf_type_detector.py <archivo.pdf>")
-        print("Ejemplo: python pdf_type_detector.py ../../sources_local/originals/paper.pdf")
+        print("Ejemplo: python pdf_type_detector.py ../../sources/originals/paper.pdf")
         sys.exit(1)
     
     pdf_path = Path(sys.argv[1])

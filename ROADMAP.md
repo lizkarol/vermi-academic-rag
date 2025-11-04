@@ -19,7 +19,7 @@ El roadmap se divide en fases, cada una con objetivos claros, tareas específica
 **Objetivo Principal:** Asegurar que el repositorio esté perfectamente alineado con la filosofía BYOS y que las herramientas base estén robustas y listas para el primer ciclo de ingesta.
 
 *   **Hitos y Tareas Clave:**
-    *   [x] **Implementar el "Motor" de Conversión:** Crear y validar el script `scripts/convert_pdf_local.py` para la conversión local de PDF a Markdown.
+    *   [x] **Implementar el "Motor" de Conversión:** Crear y validar el script `scripts/adaptive_converter.py` para la conversión local de PDF a Markdown.
     *   [x] **Alinear Dependencias:** Actualizar `scripts/requirements.txt` para incluir todas las herramientas necesarias (`marker-sdk`, `torch`, etc.).
     *   [x] **Reforzar `.gitignore`:** Garantizar que todos los artefactos locales (PDFs, `markdown_outputs`) sean ignorados por Git.
     *   [x] **Alinear Documentación Principal:** Actualizar `README.md`, `CONTRIBUTING.md`, y `docs/WORKFLOW.md` para reflejar el flujo de trabajo centrado en el usuario local.
@@ -38,8 +38,8 @@ El roadmap se divide en fases, cada una con objetivos claros, tareas específica
     1.  **Selección de Fuente:** Elegir un primer PDF académico representativo (con texto, tablas, citas).
     2.  **Configuración del Entorno:** El usuario ejecuta `pip install -r scripts/requirements.txt`.
     3.  **Ejecución del "Motor" (PDF → MD):**
-        *   El usuario ejecuta `python scripts/convert_pdf_local.py "ruta/al/pdf.pdf"`.
-        *   Se verifica la calidad del `.md` generado en `sources/markdown_outputs/`.
+        *   El usuario ejecuta `python scripts/adaptive_converter.py "ruta/al/pdf.pdf"`.
+        *   Se verifica la calidad del `.md` generado en `sources_local/markdown_outputs/`.
     4.  **Generación de Chunks (LLM):**
         *   El usuario sigue la guía de `scripts/generate_cards_local.md` para generar los chunks JSON.
         *   **Revisión Manual Crítica:** Se validan los primeros chunks para asegurar que el LLM sigue el esquema y el parafraseo es de calidad.
@@ -62,7 +62,7 @@ El roadmap se divide en fases, cada una con objetivos claros, tareas específica
 *   **Hitos y Tareas Clave:**
     1.  **Ingesta de Más Fuentes:** Repetir el ciclo de la Fase 1 con 5-10 documentos adicionales para alcanzar ~100-150 chunks y cubrir las categorías principales de la taxonomía.
     2.  **Refinamiento del "Motor" de Conversión:**
-        *   Mejorar `convert_pdf_local.py` para manejar casos complejos (ej. tablas de múltiples páginas, figuras).
+        *   Mejorar `adaptive_converter.py` para manejar casos complejos (ej. tablas de múltiples páginas, figuras).
         *   Añadir opciones de línea de comandos para mayor control (ej. `--force-ocr`).
     3.  **Generación Automatizada de Chunks:**
         *   Desarrollar `scripts/chunking/generate_cards.py` para automatizar la generación con LLMs locales.

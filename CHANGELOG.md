@@ -84,7 +84,7 @@ Limpieza para tener una base sólida y honesta:
   - Exclusión de modelos y cache
 
 #### Moved
-- `scripts/convert_pdf_local.py` → `scripts/conversion/`
+- `scripts/adaptive_converter.py` → `scripts/conversion/`
 - `scripts/validate_chunks.py` → `scripts/chunking/`
 - `scripts/merge_redundant.py` → `scripts/chunking/`
 - `scripts/compute_embeddings.py` → `scripts/embeddings/`

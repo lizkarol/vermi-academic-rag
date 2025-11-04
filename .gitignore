@@ -1,9 +1,5 @@
 # ========== BYOS POLICY: NUNCA SUBIR FUENTES CON COPYRIGHT ==========
 
-# Directorio completo de fuentes (PDFs, MDs, DOCs)
-sources/
-sources/**/*
-
 # Directorio local de conversión (solo local, nunca subir)
 sources_local/
 sources_local/**/*
@@ -163,3 +159,12 @@ $RECYCLE.BIN/
 # Artifacts locales de CI
 .github/workflows/*.local.yml
 
+# PDFs originales (no commitear)
+sources_local/originals/*.pdf
+sources_local/converted/*.md
+# Bases de datos
+sources_local/metadata/*.db
+sources_local/metadata/*.db-journal
+data/embeddings/lancedb/
+backup_*/
+data/embeddings/cache/

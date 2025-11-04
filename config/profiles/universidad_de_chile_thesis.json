@@ -1,0 +1,47 @@
+{
+  "name": "universidad_de_chile_thesis",
+  "description": "Tesis de Universidad de Chile",
+  "preferred_strategy": null,
+  "force_ocr": false,
+  "ocr_languages": [
+    "es",
+    "en"
+  ],
+  "normalization": {
+    "name": "universidad_de_chile_norm",
+    "description": "Normalización para Universidad de Chile",
+    "institution": "Universidad de Chile",
+    "document_type": "tesis",
+    "citation_style": "apa",
+    "heading_style": "decimal",
+    "heading_keywords": [],
+    "max_heading_level": 6,
+    "start_level_offset": 1,
+    "page_marker_pattern": null,
+    "footer_pattern": null,
+    "header_pattern": null,
+    "min_chars_for_heading": 3,
+    "max_chars_for_heading": 200,
+    "uppercase_is_heading": true,
+    "detect_bold_as_heading": true,
+    "merge_fragmented_lines": true,
+    "min_line_length_for_merge": 60,
+    "preserve_tables": true,
+    "preserve_images": true,
+    "extract_image_captions": true,
+    "preserve_metadata": false,
+    "extract_bibliography": true,
+    "llm_validation": false,
+    "fidelity_threshold": 0.7,
+    "tags": [
+      "universidad_de_chile",
+      "universidad",
+      "tesis"
+    ]
+  },
+  "quick_detection": true,
+  "enable_gpu": true,
+  "batch_size": 1,
+  "save_intermediate_files": false,
+  "generate_report": true
+}

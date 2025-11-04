@@ -11,14 +11,14 @@ El proceso comienza en el entorno local del contribuidor para evitar subir mater
 ```
 PASO 1: Obtener Fuente (LOCAL)
 └─ Descargar PDF académico/manual con permiso.
-   └─ Almacenar en una carpeta local (ej. `sources/pdfs/`), que está ignorada por Git.
+   └─ Almacenar en una carpeta local (ej. `sources_local/pdfs/`), que está ignorada por Git.
 
 PASO 2: Convertir a Markdown (LOCAL)
 └─ Instalar las dependencias necesarias:
    └─ pip install -r scripts/requirements.txt
 └─ Ejecutar el script de conversión proporcionado:
-   └─ python scripts/convert_pdf_local.py "sources/pdfs/mi_documento.pdf" --output_dir "sources/markdown"
-└─ Revisar y limpiar manualmente el archivo .md generado en `sources/markdown/` si es necesario.
+   └─ python scripts/adaptive_converter.py "sources_local/pdfs/mi_documento.pdf" --output_dir "sources_local/markdown"
+└─ Revisar y limpiar manualmente el archivo .md generado en `sources_local/markdown/` si es necesario.
 
 PASO 3: Generar Chunks JSON (LOCAL + WEB)
 └─ Abrir el script `scripts/generate_cards_local.md`.
