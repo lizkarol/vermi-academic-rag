@@ -1,8 +1,10 @@
 # ========== BYOS POLICY: NUNCA SUBIR FUENTES CON COPYRIGHT ==========
 
 # Directorio local de conversión (solo local, nunca subir)
-sources_local/
+# Se preserva SOLO la estructura de carpetas con .gitkeep
 sources_local/**/*
+!sources_local/
+!sources_local/*/
 !sources_local/*/.gitkeep
 
 # Tipos de archivo con copyright
